@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { deletePost } from "@/app/posts/actions";
+import { CommentForm } from "@/components/comment-form";
+import { CommentItem } from "@/components/comment-item";
 import { DeleteButton } from "@/components/delete-button";
 import { getCurrentUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -41,7 +43,9 @@ async function Discussion({ id }: { id: string }) {
       .overrideTypes<Post | null, { merge: false }>(),
     supabase
       .from("comments")
-      .select("id, body, created_at, author:profiles(username)")
+      .select(
+        "id, author_id, body, created_at, updated_at, author:profiles(username)",
+      )
       .eq("post_id", id)
       .order("created_at", { ascending: true })
       .overrideTypes<Comment[], { merge: false }>(),
@@ -89,23 +93,32 @@ async function Discussion({ id }: { id: string }) {
         <h2 className="mb-3 text-sm font-semibold text-muted">
           {comments.length} {comments.length === 1 ? "comment" : "comments"}
         </h2>
+        <div className="mb-4">
+          {userId ? (
+            <CommentForm postId={post.id} />
+          ) : (
+            <p className="rounded-lg border border-border bg-surface p-4 text-sm text-muted">
+              <Link href="/login" className="text-accent hover:underline">
+                Sign in
+              </Link>{" "}
+              to join the discussion.
+            </p>
+          )}
+        </div>
         {comments.length === 0 ? (
           <p className="text-muted">No comments yet.</p>
         ) : (
           <ul className="space-y-3">
             {comments.map((comment) => (
-              <li
+              <CommentItem
                 key={comment.id}
-                className="rounded-lg border border-border bg-surface p-4"
-              >
-                <p className="text-xs text-muted">
-                  u/{comment.author?.username ?? "deleted"} ·{" "}
-                  {timeAgo(comment.created_at)}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">
-                  {comment.body}
-                </p>
-              </li>
+                id={comment.id}
+                body={comment.body}
+                username={comment.author?.username ?? "deleted"}
+                when={timeAgo(comment.created_at)}
+                edited={comment.updated_at !== comment.created_at}
+                isAuthor={userId === comment.author_id}
+              />
             ))}
           </ul>
         )}
