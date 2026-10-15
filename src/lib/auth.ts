@@ -1,0 +1,19 @@
+import { createClient } from "@/lib/supabase/server";
+
+export type CurrentUser = { id: string; username: string };
+
+// The signed-in user with their profile username, or null when signed out.
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const id = data?.claims.sub;
+  if (!id) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", id)
+    .maybeSingle();
+
+  return { id, username: profile?.username ?? "unknown" };
+}
