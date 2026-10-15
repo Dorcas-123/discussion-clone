@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { deletePost } from "@/app/posts/actions";
+import { DeleteButton } from "@/components/delete-button";
+import { getCurrentUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { timeAgo } from "@/lib/time";
 import type { Comment, Post } from "@/lib/types";
@@ -26,10 +29,13 @@ export default function PostPage({ params }: PageProps<"/posts/[id]">) {
 async function Discussion({ id }: { id: string }) {
   const supabase = await createClient();
 
-  const [postResult, commentsResult] = await Promise.all([
+  const [userId, postResult, commentsResult] = await Promise.all([
+    getCurrentUserId(supabase),
     supabase
       .from("posts")
-      .select("id, title, body, created_at, author:profiles(username)")
+      .select(
+        "id, author_id, title, body, created_at, updated_at, author:profiles(username)",
+      )
       .eq("id", id)
       .maybeSingle()
       .overrideTypes<Post | null, { merge: false }>(),
@@ -48,18 +54,34 @@ async function Discussion({ id }: { id: string }) {
   const post = postResult.data;
   if (!post) notFound();
   const comments = commentsResult.data;
+  const isAuthor = userId === post.author_id;
+  const edited = post.updated_at !== post.created_at;
 
   return (
     <>
       <article className="mt-4 rounded-lg border border-border bg-surface p-5">
         <p className="text-xs text-muted">
           u/{post.author?.username ?? "deleted"} · {timeAgo(post.created_at)}
+          {edited && " · edited"}
         </p>
         <h1 className="mt-1 text-2xl font-semibold">{post.title}</h1>
         {post.body && (
           <p className="mt-3 whitespace-pre-wrap leading-relaxed">
             {post.body}
           </p>
+        )}
+        {isAuthor && (
+          <div className="mt-4 flex items-center gap-4 text-sm">
+            <Link
+              href={`/posts/${post.id}/edit`}
+              className="text-muted hover:text-foreground"
+            >
+              Edit
+            </Link>
+            <form action={deletePost.bind(null, post.id)}>
+              <DeleteButton confirmText="Delete this post and all its comments?" />
+            </form>
+          </div>
         )}
       </article>
 

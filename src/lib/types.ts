@@ -11,9 +11,11 @@ export type PostSummary = {
 
 export type Post = {
   id: string;
+  author_id: string;
   title: string;
   body: string;
   created_at: string;
+  updated_at: string;
   author: Author;
 };
 
