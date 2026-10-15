@@ -1,0 +1,25 @@
+export type Author = { username: string } | null;
+
+export type PostSummary = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  author: Author;
+  comments: { count: number }[];
+};
+
+export type Post = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  author: Author;
+};
+
+export type Comment = {
+  id: string;
+  body: string;
+  created_at: string;
+  author: Author;
+};
