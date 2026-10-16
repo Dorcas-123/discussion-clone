@@ -5,6 +5,7 @@ import { deletePost } from "@/app/posts/actions";
 import { CommentForm } from "@/components/comment-form";
 import { CommentItem } from "@/components/comment-item";
 import { DeleteButton } from "@/components/delete-button";
+import { VoteButtons } from "@/components/vote-buttons";
 import { getCurrentUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { timeAgo } from "@/lib/time";
@@ -36,7 +37,7 @@ async function Discussion({ id }: { id: string }) {
     supabase
       .from("posts")
       .select(
-        "id, author_id, title, body, created_at, updated_at, author:profiles(username)",
+        "id, author_id, title, body, created_at, updated_at, score, author:profiles!posts_author_id_fkey(username), my_vote:votes(value)",
       )
       .eq("id", id)
       .maybeSingle()
@@ -63,30 +64,38 @@ async function Discussion({ id }: { id: string }) {
 
   return (
     <>
-      <article className="mt-4 rounded-lg border border-border bg-surface p-5">
-        <p className="text-xs text-muted">
-          u/{post.author?.username ?? "deleted"} · {timeAgo(post.created_at)}
-          {edited && " · edited"}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold">{post.title}</h1>
-        {post.body && (
-          <p className="mt-3 whitespace-pre-wrap leading-relaxed">
-            {post.body}
+      <article className="mt-4 flex gap-2 rounded-lg border border-border bg-surface py-5 pr-5 pl-2">
+        <VoteButtons
+          postId={post.id}
+          score={post.score}
+          myVote={post.my_vote[0]?.value ?? 0}
+          signedIn={userId !== null}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted">
+            u/{post.author?.username ?? "deleted"} · {timeAgo(post.created_at)}
+            {edited && " · edited"}
           </p>
-        )}
-        {isAuthor && (
-          <div className="mt-4 flex items-center gap-4 text-sm">
-            <Link
-              href={`/posts/${post.id}/edit`}
-              className="text-muted hover:text-foreground"
-            >
-              Edit
-            </Link>
-            <form action={deletePost.bind(null, post.id)}>
-              <DeleteButton confirmText="Delete this post and all its comments?" />
-            </form>
-          </div>
-        )}
+          <h1 className="mt-1 text-2xl font-semibold">{post.title}</h1>
+          {post.body && (
+            <p className="mt-3 whitespace-pre-wrap leading-relaxed">
+              {post.body}
+            </p>
+          )}
+          {isAuthor && (
+            <div className="mt-4 flex items-center gap-4 text-sm">
+              <Link
+                href={`/posts/${post.id}/edit`}
+                className="text-muted hover:text-foreground"
+              >
+                Edit
+              </Link>
+              <form action={deletePost.bind(null, post.id)}>
+                <DeleteButton confirmText="Delete this post and all its comments?" />
+              </form>
+            </div>
+          )}
+        </div>
       </article>
 
       <section className="mt-6">

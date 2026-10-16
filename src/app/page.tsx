@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { VoteButtons } from "@/components/vote-buttons";
+import { getCurrentUserId } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { timeAgo } from "@/lib/time";
 import type { PostSummary } from "@/lib/types";
@@ -25,13 +27,16 @@ export default function Home() {
 
 async function PostList() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("posts")
-    .select(
-      "id, title, body, created_at, author:profiles(username), comments(count)",
-    )
-    .order("created_at", { ascending: false })
-    .overrideTypes<PostSummary[], { merge: false }>();
+  const [userId, { data, error }] = await Promise.all([
+    getCurrentUserId(supabase),
+    supabase
+      .from("posts")
+      .select(
+        "id, title, body, created_at, score, author:profiles!posts_author_id_fkey(username), comments(count), my_vote:votes(value)",
+      )
+      .order("created_at", { ascending: false })
+      .overrideTypes<PostSummary[], { merge: false }>(),
+  ]);
 
   if (error) throw new Error(error.message);
 
@@ -44,11 +49,17 @@ async function PostList() {
       {data.map((post) => {
         const commentCount = post.comments[0]?.count ?? 0;
         return (
-          <li key={post.id}>
-            <Link
-              href={`/posts/${post.id}`}
-              className="block rounded-lg border border-border bg-surface p-4 transition-colors hover:border-muted"
-            >
+          <li
+            key={post.id}
+            className="flex gap-2 rounded-lg border border-border bg-surface py-3 pr-4 pl-2 transition-colors hover:border-muted"
+          >
+            <VoteButtons
+              postId={post.id}
+              score={post.score}
+              myVote={post.my_vote[0]?.value ?? 0}
+              signedIn={userId !== null}
+            />
+            <Link href={`/posts/${post.id}`} className="block min-w-0 flex-1">
               <p className="text-xs text-muted">
                 u/{post.author?.username ?? "deleted"} ·{" "}
                 {timeAgo(post.created_at)}
